@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS "chat-app_account" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "chat-app_conversation_room" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"name" varchar(255),
 	"room_type" varchar(50) NOT NULL
 );
 --> statement-breakpoint
@@ -33,7 +34,8 @@ CREATE TABLE IF NOT EXISTS "chat-app_group_member" (
 CREATE TABLE IF NOT EXISTS "chat-app_group" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(255) NOT NULL,
-	"admin_id" varchar(255) NOT NULL
+	"admin_id" varchar(255) NOT NULL,
+	"conversation_room_id" integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "chat-app_message" (
@@ -41,7 +43,10 @@ CREATE TABLE IF NOT EXISTS "chat-app_message" (
 	"conversation_room_id" integer NOT NULL,
 	"sender_id" varchar(255) NOT NULL,
 	"content" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+	"read" boolean DEFAULT false NOT NULL,
+	"reply_to_id" integer,
+	"deleted" boolean DEFAULT false NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "chat-app_room_participant" (
@@ -111,6 +116,12 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
+ ALTER TABLE "chat-app_group" ADD CONSTRAINT "chat-app_group_conversation_room_id_chat-app_conversation_room_id_fk" FOREIGN KEY ("conversation_room_id") REFERENCES "public"."chat-app_conversation_room"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
  ALTER TABLE "chat-app_message" ADD CONSTRAINT "chat-app_message_conversation_room_id_chat-app_conversation_room_id_fk" FOREIGN KEY ("conversation_room_id") REFERENCES "public"."chat-app_conversation_room"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
@@ -118,6 +129,12 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "chat-app_message" ADD CONSTRAINT "chat-app_message_sender_id_chat-app_user_id_fk" FOREIGN KEY ("sender_id") REFERENCES "public"."chat-app_user"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "chat-app_message" ADD CONSTRAINT "chat-app_message_reply_to_id_chat-app_message_id_fk" FOREIGN KEY ("reply_to_id") REFERENCES "public"."chat-app_message"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -140,5 +157,5 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "account_user_id_idx" ON "chat-app_account" ("user_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "session_user_id_idx" ON "chat-app_session" ("user_id");
+CREATE INDEX IF NOT EXISTS "account_user_id_idx" ON "chat-app_account" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "session_user_id_idx" ON "chat-app_session" USING btree ("user_id");

@@ -1,12 +1,12 @@
 {
-  "version": "6",
+  "version": "7",
   "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1720724435106,
-      "tag": "0000_massive_the_order",
+      "version": "7",
+      "when": 1720860844385,
+      "tag": "0000_chief_james_howlett",
       "breakpoints": true
     }
   ]

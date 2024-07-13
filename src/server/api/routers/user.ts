@@ -2,11 +2,21 @@ import { z } from "zod";
 import { hash } from "bcrypt";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { friends, users } from "~/server/db/schema";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 
 export const userRouter = createTRPCRouter({
   // Register a new user
+  getUser: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const user = await ctx.db.select().from(users)
+        .where(sql`${users.id} = ${input.userId}`)
+        .execute();
+      return user[0] ?? null; // Return the user data or null if not found
+    }),
   register: publicProcedure
     .input(z.object({
       name: z.string().min(1),

@@ -52,4 +52,23 @@ export const friendRouter = createTRPCRouter({
       // Return true if friendship exists, false otherwise
       return { isFriend: friendship.length > 0 };
     }),
+
+    listFriends: publicProcedure
+    .query(async ({ ctx }) => {
+      if (!ctx.session?.user.id) {
+        throw new Error("User must be logged in to fetch friends list.");
+      }
+      const userFriends = await ctx.db.select({
+        userId: friends.friendId,
+        userName: users.name,
+        userProfile: users.image
+      })
+      .from(friends)
+      .leftJoin(users, eq(friends.friendId, users.id))
+      .where(eq(friends.userId, ctx.session.user.id))
+      .execute();
+
+      return userFriends;
+    }),
+
 })

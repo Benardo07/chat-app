@@ -1,7 +1,7 @@
 {
-  "id": "89811749-384c-4f54-8bec-0d4bc447d154",
+  "id": "c621be33-094d-432a-81b3-11299601f7c4",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "6",
+  "version": "7",
   "dialect": "postgresql",
   "tables": {
     "public.chat-app_account": {
@@ -79,9 +79,17 @@
         "account_user_id_idx": {
           "name": "account_user_id_idx",
           "columns": [
-            "user_id"
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "isUnique": false
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -119,6 +127,12 @@
           "type": "serial",
           "primaryKey": true,
           "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "room_type": {
           "name": "room_type",
@@ -267,6 +281,12 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "conversation_room_id": {
+          "name": "conversation_room_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {},
@@ -277,6 +297,19 @@
           "tableTo": "chat-app_user",
           "columnsFrom": [
             "admin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "chat-app_group_conversation_room_id_chat-app_conversation_room_id_fk": {
+          "name": "chat-app_group_conversation_room_id_chat-app_conversation_room_id_fk",
+          "tableFrom": "chat-app_group",
+          "tableTo": "chat-app_conversation_room",
+          "columnsFrom": [
+            "conversation_room_id"
           ],
           "columnsTo": [
             "id"
@@ -322,6 +355,26 @@
           "primaryKey": false,
           "notNull": false,
           "default": "CURRENT_TIMESTAMP"
+        },
+        "read": {
+          "name": "read",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "reply_to_id": {
+          "name": "reply_to_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted": {
+          "name": "deleted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {},
@@ -345,6 +398,19 @@
           "tableTo": "chat-app_user",
           "columnsFrom": [
             "sender_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "chat-app_message_reply_to_id_chat-app_message_id_fk": {
+          "name": "chat-app_message_reply_to_id_chat-app_message_id_fk",
+          "tableFrom": "chat-app_message",
+          "tableTo": "chat-app_message",
+          "columnsFrom": [
+            "reply_to_id"
           ],
           "columnsTo": [
             "id"
@@ -440,9 +506,17 @@
         "session_user_id_idx": {
           "name": "session_user_id_idx",
           "columns": [
-            "user_id"
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "isUnique": false
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {

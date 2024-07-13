@@ -1,5 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  AnyPgColumn,
+  boolean,
   index,
   integer,
   pgTableCreator,
@@ -58,13 +60,24 @@ export const messages = createTable(
       mode: "date",
       withTimezone: true,
     }).default(sql`CURRENT_TIMESTAMP`),
+    read: boolean("read").notNull().default(false),
+    replyToId: integer("reply_to_id").references(() :AnyPgColumn => messages.id),
+    deleted: boolean("deleted").notNull().default(false)
   }
 );
+
+export const messageRelations = relations(messages, ({ one }) => ({
+  sender: one(users, { fields: [messages.senderId], references: [users.id] }),
+  conversationRoom: one(conversationRooms, { fields: [messages.conversationRoomId], references: [conversationRooms.id] }),
+  replyToMessage: one(messages, { fields: [messages.replyToId], references: [messages.id]}),
+}));
+
 
 export const conversationRooms = createTable(
   "conversation_room",
   {
     id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }),
     roomType: varchar("room_type", { length: 50 }).notNull(), // Could be 'private' or 'group'
   }
 );
@@ -74,10 +87,6 @@ export const conversationRoomRelations = relations(conversationRooms, ({ many })
   participants: many(users), // Many-to-many relation through an intermediary table
 }));
 
-export const messageRelations = relations(messages, ({ one }) => ({
-  sender: one(users, { fields: [messages.senderId], references: [users.id] }),
-  conversationRoom: one(conversationRooms, { fields: [messages.conversationRoomId], references: [conversationRooms.id] }),
-}));
 
 
 export const roomParticipants = createTable(
@@ -119,12 +128,17 @@ export const groups = createTable(
     adminId: varchar("admin_id", { length: 255 })
       .notNull()
       .references(() => users.id),
+    conversationRoomId: integer("conversation_room_id")  // Adding reference to conversationRoom
+      .notNull()
+      .references(() => conversationRooms.id),
+    
   }
 );
 
 export const groupRelations = relations(groups, ({ one, many }) => ({
   admin: one(users, { fields: [groups.adminId], references: [users.id] }),
   members: many(users), 
+  conversationRoom: one(conversationRooms, { fields: [groups.conversationRoomId], references: [conversationRooms.id] }),
 }));
 
 export const groupMembers = createTable(
@@ -141,6 +155,11 @@ export const groupMembers = createTable(
     compoundKey: primaryKey({ columns: [gm.groupId, gm.userId] }),
   })
 );
+
+export const groupMemberRelations = relations(groupMembers, ({ one }) => ({
+  group: one(groups, { fields: [groupMembers.groupId], references: [groups.id] }),
+  user: one(users, { fields: [groupMembers.userId], references: [users.id] }),
+}));
 
 
 

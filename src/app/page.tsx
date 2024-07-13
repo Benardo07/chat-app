@@ -19,7 +19,10 @@ export default async function Home() {
         </div>
         <div className="flex flex-1 pt-[73px]">
           <ChatSidebar />
+
           <MessageArea />
+
+          
         </div>
       </div>
     </HydrateClient>
