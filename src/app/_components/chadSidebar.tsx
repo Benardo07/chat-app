@@ -32,6 +32,10 @@ interface ConversationRoomBeta {
   }
 }
 
+interface WebSocketMessage {
+  data: unknown;  // Initially, we don't know the structure of `data`
+}
+
 
   const ChatSidebar: React.FC = () => {
     const router = useRouter();
@@ -49,6 +53,48 @@ interface ConversationRoomBeta {
     const { data: friends, refetch: refetchFriends } = api.friend.listFriends.useQuery();
     const startChat = api.conversationRoom.ensureConversationRoom.useMutation();
 
+    function isWebSocketMessage(obj: unknown): obj is WebSocketMessage {
+      return typeof obj === 'object' && obj !== null && 'data' in obj;
+    }
+
+    function isValidString(value: unknown): value is string {
+      return typeof value === 'string';
+    }
+    
+    function isValidNumber(value: unknown): value is number {
+      return typeof value === 'number';
+    }
+    
+    function isValidDate(value: unknown): value is Date {
+      return value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)));
+    }
+    
+    function isChatMessage(obj: unknown): obj is ChatMessage {
+      if (typeof obj !== 'object' || obj === null) {
+        return false;
+      }
+    
+      const message = obj as Partial<ChatMessage>;
+    
+      return (
+        isValidString(message.type) &&
+        isValidNumber(message.roomId) &&
+        (message.messageId === undefined || isValidNumber(message.messageId)) &&
+        (message.senderId === undefined || isValidString(message.senderId)) &&
+        (message.content === undefined || isValidString(message.content)) &&
+        (message.senderName === null || message.senderName === undefined || isValidString(message.senderName)) &&
+        (message.senderImage === null || message.senderImage === undefined || isValidString(message.senderImage)) &&
+        (message.createdAt === undefined || isValidDate(message.createdAt)) &&
+        typeof message.read === 'boolean' &&
+        (message.replyToId === undefined || isValidNumber(message.replyToId)) &&
+        typeof message.deleted === 'boolean'
+      );
+    }
+
+    function isString(value: unknown): value is string {
+      return typeof value === 'string';
+    }
+
     useEffect(() => {
       if (status === 'unauthenticated' || !userId) {
         router.push('/login');
@@ -58,8 +104,8 @@ interface ConversationRoomBeta {
     useEffect(() => {
       if (rooms){
         const sortedRooms = rooms.sort((a, b) => {
-          const dateA = new Date(a.latestMessage.createdAt || 0);
-          const dateB = new Date(b.latestMessage.createdAt || 0);
+          const dateA = new Date(a.latestMessage.createdAt ?? 0);
+          const dateB = new Date(b.latestMessage.createdAt ?? 0);
           return dateB.getTime() - dateA.getTime();
         });
         setRooms(sortedRooms);
@@ -67,7 +113,7 @@ interface ConversationRoomBeta {
       
     }, [rooms])
     useEffect(() => {
-      ws.current = new WebSocket('ws://chat-app-server.competitive-conni.internal:8000');
+      ws.current = new WebSocket('https://competitive-conni-benardoproject-1c75b802.koyeb.app/');
       ws.current.onopen = () => {
         console.log("WebSocket connection established");
         rooms?.forEach((room: ConversationRoom) => {
@@ -75,16 +121,22 @@ interface ConversationRoomBeta {
         });
       };
   
-      ws.current.onmessage = (event: MessageEvent) => {
-        const message: ChatMessage = JSON.parse(event.data);
-        console.log("Received message:", message);
-        console.log(currentRoom?.id)
-
-        if (message.type === 'message' && message.roomId !== currentRoom?.id) {
-          updateUnreadCount(message.roomId);
+      ws.current.onmessage = (event) => {
+        if (isWebSocketMessage(event) && isString(event.data)) {
+          try {
+            const message: unknown = JSON.parse(event.data);
+            if (isChatMessage(message)) {     
+              console.log("tes")    
+              if (message.type === 'message' && message.roomId !== currentRoom?.id) {
+                updateUnreadCount(message.roomId);
+              }
+              updateLatestMessage(message);
+            }
+          }catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
         }
-
-        updateLatestMessage(message);
+        
       };
   
       return () => {
@@ -95,7 +147,7 @@ interface ConversationRoomBeta {
     const handleAddNewChat = () => {
       setShowFriends(true);
       if (isEnabled) {
-        refetchFriends();
+        void refetchFriends();
       }
     };
     const updateUnreadCount = (roomId: number) => {
@@ -135,7 +187,7 @@ interface ConversationRoomBeta {
         if (room) {
           setCurrentRoom(room);
         }
-        refetchRooms();
+        void refetchRooms();
         console.log("Chat room ensured", room);
         setShowFriends(false)
       } catch (err) {

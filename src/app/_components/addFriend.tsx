@@ -114,7 +114,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ onClose }) => {
         {loadingSearch && <div className="loader"></div>}
         {userFound && !loadingSearch && (
           <div className='flex flex-col gap-2 items-center'>
-            <Image src={userFound.image || '/defaultProfile.jpeg'} alt="Profile" width={50} height={50} className='rounded-full' />
+            <Image src={userFound.image ?? '/defaultProfile.jpeg'} alt="Profile" width={50} height={50} className='rounded-full' />
             <p>{userFound.name}</p>
             {isFriend ? (
               <>

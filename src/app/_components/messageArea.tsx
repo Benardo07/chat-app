@@ -15,6 +15,9 @@ interface User {
   password: string;
   image: string | null;
 } 
+interface WebSocketMessage {
+  data: unknown;  // Initially, we don't know the structure of `data`
+}
 
 interface ChatMessage {
   type: 'message' | 'join' | 'leave';
@@ -99,11 +102,52 @@ const MessageArea: React.FC = () => {
     }
 };
 
+function isWebSocketMessage(obj: unknown): obj is WebSocketMessage {
+  return typeof obj === 'object' && obj !== null && 'data' in obj;
+}
+
+function isValidString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isValidNumber(value: unknown): value is number {
+  return typeof value === 'number';
+}
+
+function isValidDate(value: unknown): value is Date {
+  return value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)));
+}
+
+function isChatMessage(obj: unknown): obj is ChatMessage {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+
+  const message = obj as Partial<ChatMessage>;
+
+  return (
+    isValidString(message.type) &&
+    isValidNumber(message.roomId) &&
+    (message.messageId === undefined || isValidNumber(message.messageId)) &&
+    (message.senderId === undefined || isValidString(message.senderId)) &&
+    (message.content === undefined || isValidString(message.content)) &&
+    (message.senderName === null || message.senderName === undefined || isValidString(message.senderName)) &&
+    (message.senderImage === null || message.senderImage === undefined || isValidString(message.senderImage)) &&
+    (message.createdAt === undefined || isValidDate(message.createdAt)) &&
+    typeof message.read === 'boolean' &&
+    (message.replyToId === undefined || isValidNumber(message.replyToId)) &&
+    typeof message.deleted === 'boolean'
+  );
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
   useEffect(() => {
     if (!currentRoom?.id) return;
 
-    const websocket = new WebSocket('ws://chat-app-server.competitive-conni.internal:8000');
-    websocket.onopen = () => {
+    const websocket = new WebSocket('https://competitive-conni-benardoproject-1c75b802.koyeb.app/');
+    websocket.onopen = async () => {
       console.log('WebSocket connected');
       const joinMessage: ChatMessage = {
         type: 'join',
@@ -113,16 +157,31 @@ const MessageArea: React.FC = () => {
       };
       websocket.send(JSON.stringify(joinMessage));
 
-      markMessagesAsRead(currentRoom.id);
+      await markMessagesAsRead(currentRoom.id);
     };
 
     websocket.onmessage = async (event) => {
-      const message: ChatMessage = JSON.parse(event.data);
-      if (message.type === 'message') {
-        setMessages(prevMessages => [...prevMessages, message]);
-        await markMessagesAsRead(currentRoom.id);
-        void refetch();
+      console.log("ini eventnya")
+      console.log(event)
+      if (isWebSocketMessage(event) && isString(event.data)) {
+        try {
+          const message: unknown = JSON.parse(event.data);
+          if (isChatMessage(message)) {
+            console.log("Received message:", message);
+            console.log("tes")  
+            if (message.type === 'message') {
+              setMessages(prevMessages => [...prevMessages, message]);
+              await markMessagesAsRead(currentRoom.id);
+              void refetch();
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
+        }
+      } else {
+        console.error("Received non-string or unexpected message from WebSocket");
       }
+      
     };
 
     websocket.onclose = () => {
@@ -202,7 +261,7 @@ const MessageArea: React.FC = () => {
       <div className="flex items-center justify-center h-full w-full">
         <div className="text-center">
           <h2 className="text-xl font-semibold">Start a Conversation</h2>
-          <p>Select a chat to start messaging or use the "New Chat" button to create a new conversation.</p>
+          <p>Select a chat to start messaging or use the `&quot;New Chat`&quot; button to create a new conversation.</p>
         </div>
       </div>
     );
@@ -250,9 +309,9 @@ const MessageArea: React.FC = () => {
           />
           <button
             className="ml-4 flex items-center justify-center px-4 py-2 bg-[#19cc64] text-white font-medium rounded-xl"
-            onClick={() => {
+            onClick={async () => {
               if (newMessage.trim()) {
-                handleSendMessage({ key: 'Enter' } as React.KeyboardEvent<HTMLInputElement>);
+                await handleSendMessage({ key: 'Enter' } as React.KeyboardEvent<HTMLInputElement>);
               }
             }}
           >

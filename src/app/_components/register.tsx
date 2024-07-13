@@ -21,7 +21,7 @@ const SignUpPage: React.FC = () => {
   const registerUser = api.user.register.useMutation();
 
   const validateForm = (): boolean => {
-    let tempErrors: Errors = {};
+    const tempErrors: Errors = {};
     if (!email.includes('@')) {
       tempErrors.email = 'Invalid email address';
     }

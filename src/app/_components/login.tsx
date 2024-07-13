@@ -17,7 +17,7 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
  
   const validateForm = (): boolean => {
-    let tempErrors: LoginErrors = {};
+    const tempErrors: LoginErrors = {};
     if (!email.includes('@')) {
       tempErrors.email = 'Please enter a valid email address.';
     }
