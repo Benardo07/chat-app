@@ -5,6 +5,8 @@ export interface ConversationRoom {
     id: number;
     roomType: string | null;
     name: string | null;
+    unreadCount? : number;
+    
 }
 
 interface ConversationRoomContextType {

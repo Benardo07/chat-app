@@ -1,7 +1,7 @@
 // server/routers/conversationRoomRouter.ts
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc';
-import { conversationRooms, roomParticipants, users } from '~/server/db/schema';
-import { and, eq, exists, not, sql } from 'drizzle-orm';
+import { conversationRooms, messages, roomParticipants, users } from '~/server/db/schema';
+import { and, count, desc, eq, exists, max, not, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { alias } from 'drizzle-orm/pg-core';
 
@@ -29,6 +29,33 @@ export const conversationRoomRouter = createTRPCRouter({
     }
 
     const rooms = await Promise.all(roomsWithParticipants.map(async (room) => {
+
+      if (!ctx.session){
+        throw new Error("unauthorize")
+      }
+      const messagesInfo = await ctx.db.select()
+      .from(messages)
+      .leftJoin(users, eq(messages.senderId, users.id))
+      .where(
+        eq(messages.conversationRoomId, room.roomId),
+      )
+      .orderBy(desc(messages.createdAt))
+      .execute();
+
+      const unreadCountResult = await ctx.db.select({count: count()})
+          .from(messages)
+          .where(and(
+            eq(messages.conversationRoomId, room.roomId),
+            eq(messages.read, false),
+            not(eq(messages.senderId, ctx.session.user.id))
+          ));
+
+      const unreadCount = unreadCountResult[0]?.count ?? 0;
+
+      
+
+      
+      
       if (room.roomType === 'private' && ctx.session) {
         const otherParticipant = await ctx.db.select({ name: users.name })
           .from(users)
@@ -42,14 +69,29 @@ export const conversationRoomRouter = createTRPCRouter({
         return {
           id: room.roomId,
           roomType: room.roomType,
-          name: otherParticipant.map(u => u.name).join(', ')
+          name: otherParticipant.map(u => u.name).join(', '),
+          unreadCount : unreadCount,
+          latestMessage: {
+            content: messagesInfo[0]?.message.content,
+            createdAt : messagesInfo[0]?.message.createdAt,
+          }
         };
-      } else {
-        return {
-          id: room.roomId,
-          roomType: room.roomType,
-          name: room.roomName
-        };
+      } else{
+
+
+          return {
+            id: room.roomId,
+            roomType: room.roomType,
+            name: room.roomName,
+            unreadCount: unreadCount,
+            latestMessage: {
+              content: messagesInfo[0]?.message.content,
+            createdAt : messagesInfo[0]?.message.createdAt,
+            }
+          };
+        
+        
+        
       }
     }));
 

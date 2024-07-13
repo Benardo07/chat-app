@@ -102,7 +102,7 @@ const MessageArea: React.FC = () => {
   useEffect(() => {
     if (!currentRoom?.id) return;
 
-    const websocket = new WebSocket('ws://localhost:3001');
+    const websocket = new WebSocket('ws://chat-app-server.competitive-conni.internal:8000');
     websocket.onopen = () => {
       console.log('WebSocket connected');
       const joinMessage: ChatMessage = {

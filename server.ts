@@ -1,51 +1,51 @@
-// Correct use of WebSocket from 'ws' in Node.js
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 interface ChatMessage {
   type: 'message' | 'join' | 'leave';
   roomId: number;
-  messageId?: number; // Assuming you might also want the message ID
-  senderId?: string;
-  content?: string;
+  messageId?: number;
+  senderId: string;
+  content: string;
   senderName?: string | null;
   senderImage?: string | null;
   createdAt?: Date | null;
   read: boolean;
-  replyToId?: number | null; // This is optional, referencing another message ID
+  replyToId?: number | null;
   deleted: boolean;
 }
 
 const wss = new WebSocketServer({ port: 3001 });
-const clients = new Map<number, Set<WebSocket>>(); // roomId to clients
+const clients = new Map<WebSocket, Set<number>>(); // Maps WebSocket to a set of subscribed room IDs
 
-wss.on('connection', ws => {
-  ws.on('message', data => {
+wss.on('connection', (ws) => {
+  const subscriptions = new Set<number>();
+  clients.set(ws, subscriptions);
+
+  ws.on('message', (data) => {
     const msg: ChatMessage = JSON.parse(data.toString());
 
-    if (msg.type === 'join') {
-      let room = clients.get(msg.roomId);
-      if (!room) {
-        room = new Set();
-        clients.set(msg.roomId, room);
-      }
-      room.add(ws);
-      console.log(`Client joined room ${msg.roomId}`);
-    } else if (msg.type === 'message') {
-      // Send message to all clients in the same room
-      clients.get(msg.roomId)?.forEach(client => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(msg));
-        }
-      });
+    switch (msg.type) {
+      case 'join':
+        subscriptions.add(msg.roomId);
+        console.log(`Client joined room ${msg.roomId}`);
+        break;
+
+      case 'message':
+        // Send message to all clients subscribed to this room
+        clients.forEach((rooms, client) => {
+          if (rooms.has(msg.roomId) && client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(msg));
+          }
+        });
+        break;
     }
   });
 
   ws.on('close', () => {
-    clients.forEach((set, roomId) => {
-      set.delete(ws);
-      if (set.size === 0) {
-        clients.delete(roomId);
-      }
+    clients.delete(ws);
+
+    subscriptions.forEach(roomId => {
+      console.log(`Client removed from room ${roomId}`);
     });
   });
 });
